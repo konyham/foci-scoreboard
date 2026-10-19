@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Eredményjelző Overlay</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 15px;
+      background: transparent;
+      font-family: 'Arial Black', sans-serif;
+      overflow: hidden;
+    }
+    .container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .scoreboard {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(15, 15, 15, 0.92);
+      color: #ffffff;
+      border-radius: 8px 8px 0 0;
+      border: 2px solid #333;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      font-size: 22px;
+      overflow: hidden;
+    }
+    .team {
+      padding: 8px 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background-color 0.3s, color 0.3s, font-size 0.3s;
+    }
+    .score-box {
+      display: flex;
+      align-items: center;
+      background: #ffcc00;
+      color: #000;
+      padding: 8px 10px;
+      font-weight: bold;
+    }
+    .score {
+      padding: 0 4px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .score-divider {
+      padding: 0 2px;
+    }
+    .timer {
+      background: #222;
+      color: #00ffcc;
+      padding: 8px 14px;
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      font-weight: bold;
+    }
+    .info-bar {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(0, 0, 0, 0.85);
+      color: #aaa;
+      font-size: 14px;
+      padding: 4px 10px;
+      border: 2px solid #333;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: sans-serif;
+      font-weight: bold;
+    }
+    .extra-badge {
+      color: #ff9800;
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      font-size: 20px;
+      font-weight: bold;
+    }
+  </style>
+
+  <!-- Firebase v8 SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <div class="scoreboard">
+      <div class="team" id="homeName">HAZAI</div>
+      
+      <div class="score-box" id="scoreBox">
+        <span class="score" id="homeScore">0</span>
+        <span class="score-divider">-</span>
+        <span class="score" id="awayScore">0</span>
+      </div>
+
+      <div class="team" id="awayName">VENDÉG</div>
+      <div class="timer" id="time">00:00</div>
+    </div>
+    
+    <div class="info-bar" id="infoBar">
+      <span id="periodText">1. FÉLIDŐ</span>
+      <span class="extra-badge" id="extraText"></span>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtVS0T5s22w-oq-yJfjexjB855VCnlkMI",
+      authDomain: "foci-streaming.firebaseapp.com",
+      databaseURL: "https://foci-streaming-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "foci-streaming",
+      storageBucket: "foci-streaming.firebasestorage.app",
+      messagingSenderId: "441368338015",
+      appId: "1:441368338015:web:b69255aa7c7eb5bc1f45ea",
+      measurementId: "G-6TG02MSXM7"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    db.ref('match').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Hazai adatok
+        const homeEl = document.getElementById('homeName');
+        if (data.homeName) homeEl.innerText = data.homeName;
+        if (data.homeBg) homeEl.style.backgroundColor = data.homeBg;
+        if (data.homeText) homeEl.style.color = data.homeText;
+
+        // Vendég adatok
+        const awayEl = document.getElementById('awayName');
+        if (data.awayName) awayEl.innerText = data.awayName;
+        if (data.awayBg) awayEl.style.backgroundColor = data.awayBg;
+        if (data.awayText) awayEl.style.color = data.awayText;
+
+        // Eredmény és fő óra
+        document.getElementById('homeScore').innerText = data.homeScore !== undefined ? data.homeScore : 0;
+        document.getElementById('awayScore').innerText = data.awayScore !== undefined ? data.awayScore : 0;
+        if (data.time) document.getElementById('time').innerText = data.time;
+
+        // Félidő felirat
+        const periodEl = document.getElementById('periodText');
+        if (data.period) periodEl.innerText = data.period.toUpperCase();
+
+        // Hosszabbítás megjelenítése
+        let extraDisplay = '';
+        if (data.extraMinutes && data.extraMinutes > 0) {
+          extraDisplay += `(+${data.extraMinutes}') `;
+        }
+        if (data.isExtraActive && data.extraTimeStr) {
+          extraDisplay += `${data.extraTimeStr}`;
+        }
+        document.getElementById('extraText').innerText = extraDisplay;
+
+        // Dinamikus betűméretek és színek frissítése
+        if (data.fontTeam) {
+          homeEl.style.fontSize = data.fontTeam + 'px';
+          awayEl.style.fontSize = data.fontTeam + 'px';
+        }
+        if (data.fontScore) {
+          document.getElementById('scoreBox').style.fontSize = data.fontScore + 'px';
+        }
+        if (data.scoreBg) {
+          document.getElementById('scoreBox').style.backgroundColor = data.scoreBg;
+        }
+        if (data.scoreText) {
+          document.getElementById('scoreBox').style.color = data.scoreText;
+        }
+        if (data.fontTimer) {
+          document.getElementById('time').style.fontSize = data.fontTimer + 'px';
+        }
+        if (data.timerBg) {
+          document.getElementById('time').style.backgroundColor = data.timerBg;
+        }
+        if (data.timerText) {
+          document.getElementById('time').style.color = data.timerText;
+        }
+        if (data.fontExtra) {
+          document.getElementById('extraText').style.fontSize = data.fontExtra + 'px';
+        }
+        if (data.extraTextColor) {
+          document.getElementById('extraText').style.color = data.extraTextColor;
+        }
+        // Félidő sáv beállításai
+        const infoBarEl = document.getElementById('infoBar');
+        if (data.fontPeriod) {
+          periodEl.style.fontSize = data.fontPeriod + 'px';
+        }
+        if (data.periodBg) {
+          infoBarEl.style.backgroundColor = data.periodBg;
+        }
+        if (data.periodText) {
+          periodEl.style.color = data.periodText;
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

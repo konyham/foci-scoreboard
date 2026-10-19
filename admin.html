@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mérkőzés Adminisztráció</title>
+  <style>
+    body { font-family: sans-serif; background: #121212; color: #fff; text-align: center; padding: 15px; margin: 0; }
+    .team-box { border: 1px solid #333; padding: 12px; margin: 10px 0; border-radius: 8px; background: #1e1e1e; }
+    button { font-size: 1rem; padding: 10px 14px; margin: 4px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    .btn-add { background: #4CAF50; color: white; }
+    .btn-sub { background: #f44336; color: white; }
+    .btn-ctrl { background: #2196F3; color: white; }
+    .btn-set { background: #ff9800; color: white; }
+    .btn-period { background: #9c27b0; color: white; }
+    .btn-extra { background: #607d8b; color: white; min-width: 35px; }
+    input[type="text"] { font-size: 1.1rem; padding: 8px; text-align: center; margin: 5px; width: 85%; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; }
+    input[type="number"] { font-size: 1rem; padding: 6px; text-align: center; width: 55px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; }
+    .color-picker-group { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 8px 0; font-size: 0.85rem; }
+    .color-picker-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    input[type="color"] { border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; background: transparent; }
+    .timer-display { font-size: 2.2rem; font-weight: bold; margin: 10px 0; color: #ffeb3b; font-family: monospace; }
+    .extra-display { font-size: 1.2rem; color: #ff9800; margin-bottom: 10px; font-weight: bold; }
+    .btn-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 8px 0; }
+    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; font-size: 0.85rem; background: #2a2a2a; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .style-item { display: flex; flex-direction: column; gap: 4px; }
+  </style>
+
+  <!-- Firebase v8 SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+  <h2>Foci Meccs Vezérlő</h2>
+
+  <!-- HAZAI CSAPAT -->
+  <div class="team-box">
+    <input type="text" id="homeName" value="HAZAI" onchange="updateMatchDetails()">
+    <div class="color-picker-group">
+      <label>Háttér: <input type="color" id="homeBg" value="#151515" onchange="updateMatchDetails()"></label>
+      <label>Betű: <input type="color" id="homeText" value="#ffffff" onchange="updateMatchDetails()"></label>
+    </div>
+    <button class="btn-add" onclick="changeScore('home', 1)">+ GÓL</button>
+    <button class="btn-sub" onclick="changeScore('home', -1)">- GÓL</button>
+  </div>
+
+  <!-- VENDÉG CSAPAT -->
+  <div class="team-box">
+    <input type="text" id="awayName" value="VENDÉG" onchange="updateMatchDetails()">
+    <div class="color-picker-group">
+      <label>Háttér: <input type="color" id="awayBg" value="#151515" onchange="updateMatchDetails()"></label>
+      <label>Betű: <input type="color" id="awayText" value="#ffffff" onchange="updateMatchDetails()"></label>
+    </div>
+    <button class="btn-add" onclick="changeScore('away', 1)">+ GÓL</button>
+    <button class="btn-sub" onclick="changeScore('away', -1)">- GÓL</button>
+  </div>
+
+  <!-- FÉLIDŐK -->
+  <div class="team-box">
+    <div style="font-weight:bold; margin-bottom: 8px;">Félidő / Állapot</div>
+    <button class="btn-period" onclick="setPeriod('1. félidő', 0)">1. félidő</button>
+    <button class="btn-period" onclick="setPeriod('Félidő vége', 2700)">Félidő vége</button>
+    <button class="btn-period" onclick="setPeriod('2. félidő', 2700)">2. félidő</button>
+    <button class="btn-period" onclick="setPeriod('Mérkőzés vége', 5400)">Mérkőzés vége</button>
+  </div>
+
+  <!-- STOPPER ÉS HOSSZABBÍTÁS -->
+  <div class="team-box">
+    <div class="timer-display" id="timer">00:00</div>
+    <div class="extra-display" id="extraText"></div>
+    
+    <div>
+      <button class="btn-ctrl" onclick="startTimer()">Start</button>
+      <button class="btn-ctrl" onclick="stopTimer()">Stopp</button>
+      <button class="btn-ctrl" onclick="resetTimer()">Nullázás</button>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #333; margin: 12px 0;">
+
+    <div style="font-weight:bold; margin-bottom: 5px;">Hosszabbítás (perc)</div>
+    <div class="btn-grid">
+      <button class="btn-extra" onclick="setExtraMins(1)">1'</button>
+      <button class="btn-extra" onclick="setExtraMins(2)">2'</button>
+      <button class="btn-extra" onclick="setExtraMins(3)">3'</button>
+      <button class="btn-extra" onclick="setExtraMins(4)">4'</button>
+      <button class="btn-extra" onclick="setExtraMins(5)">5'</button>
+      <button class="btn-extra" onclick="setExtraMins(6)">6'</button>
+      <button class="btn-extra" onclick="setExtraMins(7)">7'</button>
+      <button class="btn-extra" onclick="setExtraMins(8)">8'</button>
+      <button class="btn-extra" onclick="setExtraMins(9)">9'</button>
+      <button class="btn-extra" onclick="setExtraMins(10)">10'</button>
+    </div>
+
+    <div style="margin-top: 8px;">
+      <input type="number" id="inputExtra" min="0" max="30" value="0">
+      <button class="btn-set" onclick="setExtraMins(document.getElementById('inputExtra').value)">Beállít</button>
+      <button class="btn-set" onclick="changeExtraMins(1)">+1m</button>
+      <button class="btn-set" onclick="changeExtraMins(-1)">-1m</button>
+      <button class="btn-sub" onclick="setExtraMins(0)">Törlés</button>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #333; margin: 12px 0;">
+
+    <div style="font-size:0.9rem; margin-bottom:5px;">Egyedi kezdőidő megadása:</div>
+    <div>
+      <input type="number" id="inputMins" min="0" max="120" value="0"> min
+      <input type="number" id="inputSecs" min="0" max="59" value="0"> sec
+      <button class="btn-set" onclick="setCustomTime()">Beállít</button>
+    </div>
+  </div>
+
+  <!-- STÍLUS & BETŰMÉRETEK TESTRESZABÁSA -->
+  <div class="team-box">
+    <div style="font-weight:bold; margin-bottom: 8px;">🎨 Testreszabás (Betűméretek és Színek)</div>
+    <div class="style-grid">
+      <div class="style-item">
+        <strong>Csapatnév méret:</strong>
+        <input type="number" id="fontTeam" value="22" onchange="updateMatchDetails()"> px
+      </div>
+      <div class="style-item">
+        <strong>Eredmény / Gól méret:</strong>
+        <input type="number" id="fontScore" value="22" onchange="updateMatchDetails()"> px
+      </div>
+      <div class="style-item">
+        <strong>Gólok Háttér / Betű:</strong>
+        <div style="display:flex; gap:5px;">
+          <input type="color" id="scoreBg" value="#ffcc00" onchange="updateMatchDetails()">
+          <input type="color" id="scoreText" value="#000000" onchange="updateMatchDetails()">
+        </div>
+      </div>
+      <div class="style-item">
+        <strong>Fő Stopper méret:</strong>
+        <input type="number" id="fontTimer" value="20" onchange="updateMatchDetails()"> px
+      </div>
+      <div class="style-item">
+        <strong>Stopper Háttér / Betű:</strong>
+        <div style="display:flex; gap:5px;">
+          <input type="color" id="timerBg" value="#222222" onchange="updateMatchDetails()">
+          <input type="color" id="timerText" value="#00ffcc" onchange="updateMatchDetails()">
+        </div>
+      </div>
+      <div class="style-item">
+        <strong>Hosszabbítás méret:</strong>
+        <input type="number" id="fontExtra" value="20" onchange="updateMatchDetails()"> px
+      </div>
+      <div class="style-item">
+        <strong>Hosszabbítás Betűszín:</strong>
+        <input type="color" id="extraTextColor" value="#ff9800" onchange="updateMatchDetails()">
+      </div>
+      <div class="style-item">
+        <strong>Félidő sáv méret:</strong>
+        <input type="number" id="fontPeriod" value="14" onchange="updateMatchDetails()"> px
+      </div>
+      <div class="style-item">
+        <strong>Félidő sáv Háttér / Betű:</strong>
+        <div style="display:flex; gap:5px;">
+          <input type="color" id="periodBg" value="#000000" onchange="updateMatchDetails()">
+          <input type="color" id="periodText" value="#aaaaaa" onchange="updateMatchDetails()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtVS0T5s22w-oq-yJfjexjB855VCnlkMI",
+      authDomain: "foci-streaming.firebaseapp.com",
+      databaseURL: "https://foci-streaming-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "foci-streaming",
+      storageBucket: "foci-streaming.firebasestorage.app",
+      messagingSenderId: "441368338015",
+      appId: "1:441368338015:web:b69255aa7c7eb5bc1f45ea",
+      measurementId: "G-6TG02MSXM7"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    let timerInterval = null;
+    let seconds = 0;
+    let extraMinutes = 0;
+    let currentPeriod = "1. félidő";
+
+    function updateMatchDetails() {
+      db.ref('match').update({
+        homeName: document.getElementById('homeName').value,
+        homeBg: document.getElementById('homeBg').value,
+        homeText: document.getElementById('homeText').value,
+        awayName: document.getElementById('awayName').value,
+        awayBg: document.getElementById('awayBg').value,
+        awayText: document.getElementById('awayText').value,
+        period: currentPeriod,
+        // Egyedi stílusok
+        fontTeam: document.getElementById('fontTeam').value,
+        fontScore: document.getElementById('fontScore').value,
+        scoreBg: document.getElementById('scoreBg').value,
+        scoreText: document.getElementById('scoreText').value,
+        fontTimer: document.getElementById('fontTimer').value,
+        timerBg: document.getElementById('timerBg').value,
+        timerText: document.getElementById('timerText').value,
+        fontExtra: document.getElementById('fontExtra').value,
+        extraTextColor: document.getElementById('extraTextColor').value,
+        fontPeriod: document.getElementById('fontPeriod').value,
+        periodBg: document.getElementById('periodBg').value,
+        periodText: document.getElementById('periodText').value
+      });
+    }
+
+    function setPeriod(periodName, setSeconds) {
+      currentPeriod = periodName;
+      if (setSeconds !== undefined && setSeconds !== null) {
+        seconds = setSeconds;
+        stopTimer();
+      }
+      if (periodName === 'Félidő vége' || periodName === 'Mérkőzés vége') {
+        stopTimer();
+      }
+      updateTimerDisplay();
+      updateMatchDetails();
+    }
+
+    function changeScore(team, delta) {
+      db.ref('match/' + team + 'Score').transaction(current => Math.max(0, (current || 0) + delta));
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        seconds++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function resetTimer() {
+      stopTimer();
+      seconds = 0;
+      extraMinutes = 0;
+      document.getElementById('inputMins').value = 0;
+      document.getElementById('inputSecs').value = 0;
+      document.getElementById('inputExtra').value = 0;
+      updateTimerDisplay();
+    }
+
+    function setExtraMins(val) {
+      extraMinutes = Math.max(0, parseInt(val) || 0);
+      document.getElementById('inputExtra').value = extraMinutes;
+      updateTimerDisplay();
+    }
+
+    function changeExtraMins(delta) {
+      setExtraMins(extraMinutes + delta);
+    }
+
+    function setCustomTime() {
+      const mins = parseInt(document.getElementById('inputMins').value) || 0;
+      const secs = parseInt(document.getElementById('inputSecs').value) || 0;
+      seconds = (mins * 60) + secs;
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      let mainSeconds = seconds;
+      let extraSecondsElapsed = 0;
+      let isExtraActive = false;
+
+      if (seconds >= 2700 && currentPeriod === '1. félidő') {
+        mainSeconds = 2700;
+        extraSecondsElapsed = seconds - 2700;
+        isExtraActive = true;
+      } else if (seconds >= 5400 && currentPeriod === '2. félidő') {
+        mainSeconds = 5400;
+        extraSecondsElapsed = seconds - 5400;
+        isExtraActive = true;
+      }
+
+      const minsStr = String(Math.floor(mainSeconds / 60)).padStart(2, '0');
+      const secsStr = String(mainSeconds % 60).padStart(2, '0');
+      const timeStr = `${minsStr}:${secsStr}`;
+
+      const exMinsStr = String(Math.floor(extraSecondsElapsed / 60)).padStart(2, '0');
+      const exSecsStr = String(extraSecondsElapsed % 60).padStart(2, '0');
+      const extraTimeStr = isExtraActive ? `+${exMinsStr}:${exSecsStr}` : '';
+
+      document.getElementById('timer').innerText = timeStr;
+      
+      let extraTextAdmin = '';
+      if (extraMinutes > 0) extraTextAdmin += `( +${extraMinutes}' ) `;
+      if (isExtraActive) extraTextAdmin += extraTimeStr;
+      document.getElementById('extraText').innerText = extraTextAdmin;
+
+      db.ref('match').update({
+        time: timeStr,
+        extraMinutes: extraMinutes,
+        extraTimeStr: extraTimeStr,
+        isExtraActive: isExtraActive,
+        period: currentPeriod
+      });
+    }
+  </script>
+
+</body>
+</html>
